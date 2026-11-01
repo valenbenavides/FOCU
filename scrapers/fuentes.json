@@ -1,0 +1,16 @@
+[
+  {
+    "id": "minciencias",
+    "nombre": "Minciencias: convocatorias",
+    "entidad": "Ministerio de Ciencia, Tecnología e Innovación (Minciencias)",
+    "url_listado": "https://minciencias.gov.co/convocatorias/todas",
+    "patron_enlaces": "/node/\\d+",
+    "max_enlaces": 12,
+    "activa": true,
+    "nota": "Única fuente por ahora (decisión del equipo). Lee las filas de la tabla (enlaces /node/N) de las 2 primeras páginas, salta lo ya revisado y lo que abrió hace más de 400 días. Quedan sin verificar hasta que la VRI les dé el visto bueno.",
+    "patron_solo_en_enlace": true,
+    "solo_filas_de_tabla": true,
+    "paginas": 2,
+    "max_antiguedad_dias": 400
+  }
+]

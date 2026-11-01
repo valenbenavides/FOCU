@@ -1,0 +1,3 @@
+# OPCIONAL: embeddings en tu propio computador (sin API). Necesita ~1 GB de RAM.
+# Solo para desarrollo; NO instalar en un servidor gratuito de 512 MB.
+fastembed

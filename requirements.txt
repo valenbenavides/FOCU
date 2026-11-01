@@ -1,0 +1,15 @@
+# Dependencias para ejecutar y publicar FOCU
+fastapi
+uvicorn[standard]
+pydantic
+pyjwt
+python-multipart
+python-dotenv
+openpyxl
+openai
+requests
+beautifulsoup4
+lxml
+pypdf
+psycopg2-binary
+google-genai

@@ -1,0 +1,12 @@
+.env
+_env
+venv/
+.venv/
+__pycache__/
+*.pyc
+datos/*.db
+datos/convocatorias.json
+.DS_Store
+
+*.xlsx
+!plantilla_semilleros.xlsx

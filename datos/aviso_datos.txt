@@ -1,0 +1,15 @@
+AVISO DE TRATAMIENTO DE DATOS PERSONALES (BORRADOR — debe ser revisado y aprobado por la Universidad del Cauca antes de usarse en producción)
+
+Responsable del tratamiento: Universidad del Cauca, Vicerrectoría de Investigaciones (VRI). Contacto: [correo y dirección por definir].
+
+Qué datos recogemos: tu nombre, tu correo institucional (si lo registraste), el semillero y el grupo de investigación al que perteneces, la información de perfil que escribas en la plataforma (área, fase y alcance de tu proyecto, monto requerido y una descripción breve) y las convocatorias a las que solicites postularte.
+
+Para qué los usamos: para mostrarte las convocatorias de financiación que mejor se ajustan a tu proyecto, y para que la VRI revise y apruebe las solicitudes de postulación de los semilleros. No usamos tus datos para publicidad ni los vendemos.
+
+Quién los ve: tú y el personal autorizado de la VRI. Tu código de acceso se guarda cifrado y no puede ser consultado.
+
+Asistente de IA: los mensajes que escribas en el asistente se envían a un proveedor externo de modelos de lenguaje para generar la respuesta. No escribas datos sensibles (salud, documentos de identidad, contraseñas).
+
+Tus derechos (Ley 1581 de 2012): conocer, actualizar y rectificar tus datos, solicitar que se supriman, revocar esta autorización y ser informado sobre el uso que se les da. Para ejercerlos escribe al contacto indicado arriba.
+
+Al pulsar "Acepto" autorizas el tratamiento de tus datos en los términos descritos.
