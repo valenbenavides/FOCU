@@ -1,16 +1,12 @@
-"""Envío de correos (código de acceso y avisos de postulación).
+"""Envío de correos en segundo plano, sin romper la petición si fallan.
 
-Elige el proveedor según las variables de entorno:
-  1) BREVO_API_KEY (+ MAIL_FROM): API web de Brevo (300 correos/día gratis). Recomendado en
-     Render, porque los hosts gratuitos suelen bloquear los puertos SMTP.
-  2) SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (+ MAIL_FROM): cualquier servidor SMTP
-     (por ejemplo el de la universidad).
-  3) Ninguna: modo desarrollo. El correo se imprime en la consola del servidor.
-Los envíos se hacen en segundo plano y nunca rompen la petición si fallan."""
+Proveedor según el entorno: Brevo (BREVO_API_KEY + MAIL_FROM), SMTP (SMTP_HOST + MAIL_FROM) o,
+si no hay ninguno, se imprime en la consola del servidor."""
 import os
 import smtplib
 import threading
 from email.message import EmailMessage
+from email.utils import formataddr
 
 import requests
 
@@ -29,7 +25,8 @@ def _enviar_ahora(destino: str, asunto: str, cuerpo: str) -> bool:
             return True
         if os.environ.get("SMTP_HOST") and remitente:
             msg = EmailMessage()
-            msg["From"], msg["To"], msg["Subject"] = remitente, destino, asunto
+            msg["From"] = formataddr(("FOCU - Universidad del Cauca", remitente))
+            msg["To"], msg["Subject"] = destino, asunto
             msg.set_content(cuerpo)
             puerto = int(os.environ.get("SMTP_PORT", "587"))
             if puerto == 465:

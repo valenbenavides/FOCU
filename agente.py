@@ -1,27 +1,45 @@
-"""Agente conversacional (Groq / Llama). Las tres funciones de abajo son las
-herramientas: el modelo decide cuándo llamarlas y ChatAgente ejecuta el ciclo
-(llamada -> resultado -> respuesta final) automáticamente."""
+"""Agente conversacional para estudiantes: guarda su perfil y recomienda convocatorias."""
 from matching import cargar_convocatorias, rankear
-from schema import CATEGORIAS
+from schema import CATEGORIAS, TIPO_FIJO, TIPOS_PERFIL
 from llm import ChatAgente
 
-SISTEMA = f"""Eres FOCU, el asistente de la Universidad del Cauca que ayuda a estudiantes,
-docentes, investigadores y emprendedores a encontrar fuentes de financiación.
+if TIPO_FIJO:
+    _QUIEN = "grupos de investigación"
+    _PREGUNTAR = "área, alcance, monto en COP, fase del proyecto"
+    _NOTA_TIPO = "- Todos los usuarios son grupos de investigación: nunca preguntes el tipo de beneficiario.\n"
+else:
+    _QUIEN = "integrantes de grupos de investigación (docentes, investigadores y estudiantes)"
+    _PREGUNTAR = "tipo de beneficiario, área, alcance, monto en COP, fase del proyecto"
+    _NOTA_TIPO = ""
+
+SISTEMA = f"""Eres FOCU, el asistente de la Universidad del Cauca que ayuda a {_QUIEN}
+a encontrar fuentes de financiación y oportunidades: proyectos de investigación, becas, movilidad,
+posgrados y otros apoyos. No asumas que la persona tiene un proyecto: pregunta primero qué busca
+(financiar un proyecto, una beca u otra oportunidad) y adapta las preguntas a eso.
 Responde siempre en español.
-- Si no conoces el perfil del usuario, pregúntale de forma breve (tipo de beneficiario, área,
-  alcance, monto en COP, fase del proyecto y una descripción breve de la idea o proyecto)
+{_NOTA_TIPO}- Si no conoces el perfil del usuario, pregúntale de forma breve ({_PREGUNTAR}
+  y una descripción breve de lo que busca: su idea o proyecto, o la beca u oportunidad que le interesa)
   y guárdalo con guardar_perfil (la descripción va en descripcion_proyecto, con las palabras del usuario).
 - Para recomendar, SIEMPRE usa buscar_convocatorias; no inventes convocatorias, montos ni fechas.
 - Explica por qué cada opción encaja o no, qué requisitos debe cumplir y su fecha límite.
+- FORMATO (la interfaz es un chat pequeño): responde corto, máximo unas 150 palabras. NO uses tablas,
+  encabezados (#), líneas horizontales (---) ni emojis. Usa párrafos breves y, si hace falta, una lista
+  con guiones (máximo 4 ítems) y **negrita** solo para nombres de convocatorias o cifras clave.
+  Esa estructura (conclusión, motivos, sugerencia) SOLO cuando analices convocatorias. Si el usuario
+  saluda o escribe algo breve, responde de forma natural en una o dos frases, sin buscar convocatorias
+  ni analizar nada hasta que lo pida o tengas lo necesario. Responde a lo que realmente preguntó.
+  No ofrezcas un menú de varias preguntas al final; haz como máximo una.
 - La interfaz ya muestra un panel con el ranking completo, así que en tu respuesta de texto
   no repitas cada convocatoria con su porcentaje; concéntrate en explicar el "por qué" de las
   mejores opciones y en preguntar lo que falte del perfil.
 - Si una convocatoria aparece como no verificada, avisa que sus datos fueron extraídos
   automáticamente y que conviene confirmarlos en la fuente oficial.
 - Si un dato no aparece en los resultados, di que no está disponible y sugiere verificar la fuente.
+- Al inicio de estas instrucciones, en "DATOS DEL USUARIO", está lo que esta persona ya registró.
+  NUNCA le preguntes algo que ya figure ahí: úsalo directamente. Pregunta solo lo que falte
+  y, si algún dato cambió o la persona lo corrige, actualízalo con guardar_perfil.
 Categorías válidas: {CATEGORIAS}"""
 
-# Esquemas de las herramientas (formato OpenAI). Los enum evitan valores inválidos.
 ESQUEMAS = [
     {"type": "function", "function": {
         "name": "guardar_perfil",
@@ -30,7 +48,7 @@ ESQUEMAS = [
                         "descripcion_proyecto es una descripción breve de la idea del usuario, "
                         "en sus propias palabras."),
         "parameters": {"type": "object", "properties": {
-            "tipo_beneficiario": {"type": "string", "enum": CATEGORIAS["tipo_beneficiario"]},
+            **({} if TIPO_FIJO else {"tipo_beneficiario": {"type": "string", "enum": TIPOS_PERFIL}}),
             "area_conocimiento": {"type": "string", "enum": CATEGORIAS["area_conocimiento"]},
             "alcance": {"type": "string", "enum": CATEGORIAS["alcance"]},
             "fase_proyecto": {"type": "string", "enum": CATEGORIAS["fase_proyecto"]},
@@ -53,13 +71,38 @@ ESQUEMAS = [
 ]
 
 
+def sistema_con_datos(nombre: str, grupo: str, facultad: str, perfil: dict) -> str:
+    """Instrucciones del agente precedidas de lo que ya se sabe de la persona."""
+    lineas = [f"- Nombre: {nombre}"]
+    if grupo:
+        lineas.append(f"- Grupo de investigación: {grupo}")
+    if facultad:
+        lineas.append(f"- Facultad: {facultad}")
+    nombres = {"tipo_beneficiario": "Tipo de beneficiario", "area_conocimiento": "Área de conocimiento",
+               "alcance": "Alcance", "fase_proyecto": "Fase del proyecto",
+               "monto_requerido_cop": "Monto requerido (COP)", "descripcion_proyecto": "Descripción del proyecto"}
+    faltan = []
+    for campo, etiqueta in nombres.items():
+        if campo == "tipo_beneficiario" and TIPO_FIJO:
+            continue
+        valor = perfil.get(campo)
+        if valor:
+            lineas.append(f"- {etiqueta}: {valor}")
+        else:
+            faltan.append(etiqueta)
+    falta = ("Lo que aún falta preguntar: " + ", ".join(faltan) + "." if faltan
+             else "El perfil está completo: no preguntes datos, ve directo a buscar_convocatorias o a responder.")
+    return "DATOS DEL USUARIO (ya registrados):\n" + "\n".join(lineas) + "\n" + falta + "\n\n" + SISTEMA
+
+
 def crear_chat(perfil: dict, resultados: list):
-    """`perfil` y `resultados` son un dict y una lista compartidos (la sesión del
-    estudiante) que las herramientas leen y escriben directamente."""
+    """Crea el agente; perfil y resultados son compartidos con la sesión del estudiante."""
 
     def guardar_perfil(tipo_beneficiario: str = "", area_conocimiento: str = "",
                        alcance: str = "", fase_proyecto: str = "",
                        monto_requerido_cop=0, descripcion_proyecto: str = "") -> dict:
+        if TIPO_FIJO:
+            tipo_beneficiario = TIPO_FIJO
         nuevos = {"tipo_beneficiario": tipo_beneficiario, "area_conocimiento": area_conocimiento,
                   "alcance": alcance, "fase_proyecto": fase_proyecto}
         errores = []
@@ -70,7 +113,7 @@ def crear_chat(perfil: dict, resultados: list):
                 errores.append(f"{campo}='{valor}' no es válido. Opciones: {CATEGORIAS[campo]}")
             else:
                 perfil[campo] = valor
-        try:  # los modelos a veces envían el monto como texto
+        try:
             monto = int(float(monto_requerido_cop or 0))
         except (TypeError, ValueError):
             monto = 0
@@ -89,10 +132,7 @@ def crear_chat(perfil: dict, resultados: list):
             return {"error": "Aún no hay perfil. Pregunta al usuario y usa guardar_perfil."}
         ranking = rankear(perfil, cargar_convocatorias())
         resultados.clear()
-        resultados.extend(ranking)  # el ranking completo queda disponible para la interfaz
-
-        # Al modelo solo se le manda un resumen: así se gastan menos tokens
-        # (importante en la capa gratuita) y responde más rápido.
+        resultados.extend(ranking)
         elegibles = [r for r in ranking if r["elegible"]][:6]
         return {
             "mejores_opciones": [{

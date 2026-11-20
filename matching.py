@@ -1,17 +1,4 @@
-"""Comparación perfil vs. convocatoria.
-1) Filtro duro (código): tipo de beneficiario y fecha límite.
-2) Puntaje ponderado: campos exactos (código) + afinidad temática (embeddings + señal
-   léxica). Si los embeddings no están disponibles, la afinidad se calcula solo con la
-   señal léxica; si además no hay texto, ese campo se ignora y el matching sigue
-   funcionando solo con los campos exactos.
-
-Embeddings (EMBEDDINGS_PROVIDER en el .env):
-  - "gemini": por API de Google (necesita GEMINI_API_KEY). Gasta casi nada de memoria,
-              por eso es lo recomendado en servidores pequeños o gratuitos.
-  - "local":  modelo en el propio servidor con fastembed (pip install fastembed). Sin API,
-              pero necesita ~1 GB de RAM: no cabe en un servidor gratuito de 512 MB.
-  - "none":   solo señal léxica.
-  - "auto" (por defecto): gemini si hay GEMINI_API_KEY; si no, local si está instalado; si no, none."""
+"""Compara el perfil con las convocatorias: filtro duro y puntaje ponderado con afinidad temática."""
 import json
 import math
 import os
@@ -24,21 +11,14 @@ import db
 
 BASE = Path(__file__).parent
 RUTA_JSON = BASE / "datos" / "convocatorias.json"
-RUTA_JSON_EJEMPLO = BASE / "datos" / "convocatorias_ejemplo.json"
 
-# Variable MACRO: el tema del proyecto (descripción / línea de investigación) frente al objetivo
-# de la convocatoria. Variables MICRO: área, monto, fase y alcance. Suman 1.0.
 PESOS = {"afinidad_tematica": 0.50, "area_conocimiento": 0.20, "monto": 0.10,
          "fase_proyecto": 0.10, "alcance": 0.10}
 
-# Calibración de la similitud coseno de los embeddings a una escala 0-1 ABSOLUTA:
-# por debajo de "bajo" = sin relación (0); por encima de "alto" = muy relacionado (1).
-# Son valores aproximados: se afinan viendo el detalle "similitud cruda" de cada tarjeta.
 CALIBRACION_EMBED = {"gemini": (0.55, 0.80), "local": (0.20, 0.60)}
-FACTOR_LEXICO = 1.5   # el solapamiento de palabras es bajo aunque el tema coincida: se escala
-TOPE_LEXICO = 0.9     # coincidir en palabras nunca es prueba de un 100 % temático
+FACTOR_LEXICO = 1.5
+TOPE_LEXICO = 0.9
 
-# Cuánto pesa el embedding vs. la coincidencia léxica dentro de la afinidad temática.
 PESO_EMBEDDING, PESO_LEXICO = 0.7, 0.3
 
 STOPWORDS_ES = {
@@ -53,13 +33,10 @@ STOPWORDS_ES = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Embeddings
-# ---------------------------------------------------------------------------
 MODELO_EMBED_GEMINI = os.environ.get("GEMINI_EMBED_MODEL", "gemini-embedding-001")
 MODELO_EMBED_LOCAL = os.environ.get(
     "EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-_cache: dict[tuple[str, str, str], list[float]] = {}   # (proveedor, rol, texto) -> vector
+_cache: dict[tuple[str, str, str], list[float]] = {}
 _modelo_local = None
 _cliente_gemini = None
 
@@ -82,9 +59,7 @@ def _embeddings_gemini(faltan: list[str], rol: str) -> list[list[float]]:
     from google import genai
     from google.genai import types
     if _cliente_gemini is None:
-        _cliente_gemini = genai.Client()   # lee GEMINI_API_KEY del entorno
-    # Asimétrico: RETRIEVAL_QUERY para lo que escribe el usuario y RETRIEVAL_DOCUMENT
-    # para el texto de cada convocatoria.
+        _cliente_gemini = genai.Client()
     task = "RETRIEVAL_QUERY" if rol == "consulta" else "RETRIEVAL_DOCUMENT"
     salida: list[list[float]] = []
     for i in range(0, len(faltan), 50):
@@ -128,32 +103,21 @@ def _coseno(a, b) -> float:
     return prod / norma if norma else 0.0
 
 
-# ---------------------------------------------------------------------------
-# Afinidad léxica (respaldo sin IA, y señal complementaria con IA)
-# ---------------------------------------------------------------------------
 def _tokenizar(texto: str) -> set[str]:
     palabras = re.findall(r"[a-záéíóúñ]+", texto.lower())
-    # Se compara por las primeras 6 letras: "investigación" ~ "investigaciones", "agrícola" ~ "agrícolas".
     return {p[:6] for p in palabras if p not in STOPWORDS_ES and len(p) > 2}
 
 
 def afinidad_lexica(a: str, b: str) -> float:
-    """Coeficiente de solapamiento de palabras (0-1). Simple pero explicable: no
-    depende de la IA y sirve de respaldo si los embeddings fallan."""
+    """Solapamiento de palabras entre dos textos (0-1); no depende de la IA."""
     ta, tb = _tokenizar(a), _tokenizar(b)
     if not ta or not tb:
         return 0.0
-    # Media geométrica de los tamaños (no el mínimo): una descripción corta frente a un texto
-    # largo ya no da casi 100 % solo porque todas sus palabras aparecen en alguna parte.
     return len(ta & tb) / math.sqrt(len(ta) * len(tb))
 
 
 def afinidades_tematicas(descripcion: str, objetivos: list[str]):
-    """Devuelve, para cada objetivo, (puntaje 0-1, texto_detalle).
-
-    El puntaje combina la similitud coseno calibrada a escala absoluta (así una convocatoria
-    sin relación NO llega a 100 % solo por ser la mejor del lote) con el solapamiento de
-    palabras. Si los embeddings no están disponibles, usa solo las palabras."""
+    """Para cada objetivo devuelve (puntaje 0-1, detalle), combinando embeddings calibrados y palabras."""
     if not objetivos:
         return []
 
@@ -185,14 +149,9 @@ def afinidades_tematicas(descripcion: str, objetivos: list[str]):
     return resultados
 
 
-# ---------------------------------------------------------------------------
-# IA: recomendaciones en lenguaje natural
-# ---------------------------------------------------------------------------
 def generar_recomendacion(perfil: dict, conv: dict) -> str:
-    """Pide a la IA una recomendación breve (máx. 3 frases) sobre qué tan bien encaja el
-    perfil con esta convocatoria y qué debería reforzar el usuario. Se llama bajo demanda
-    (un botón) para no gastar cuota en convocatorias que el usuario no abre."""
-    from llm import generar_texto  # import perezoso: el resto funciona sin la librería de IA
+    """Pide a la IA una recomendación breve sobre el encaje del perfil con la convocatoria."""
+    from llm import generar_texto
     prompt = (
         "Eres un asesor de financiación de la Universidad del Cauca. "
         f"Perfil del usuario: {json.dumps(perfil, ensure_ascii=False)}. "
@@ -209,22 +168,26 @@ def generar_recomendacion(perfil: dict, conv: dict) -> str:
         return f"No fue posible generar la recomendación con IA en este momento ({e})."
 
 
-# ---------------------------------------------------------------------------
-# Datos
-# ---------------------------------------------------------------------------
 def cargar_convocatorias_json() -> list[dict]:
-    """Respaldo: lee el JSON de convocatorias (el tuyo, o el de ejemplo)."""
-    ruta = RUTA_JSON if RUTA_JSON.exists() else RUTA_JSON_EJEMPLO
-    return json.loads(ruta.read_text(encoding="utf-8"))
+    """Lee datos/convocatorias.json; lista vacía si no existe."""
+    if not RUTA_JSON.exists():
+        return []
+    return json.loads(RUTA_JSON.read_text(encoding="utf-8"))
+
+
+def esta_vigente(conv: dict, hoy: date | None = None) -> bool:
+    """Sin fecha de cierre se considera vigente; con fecha, hasta el último día inclusive."""
+    f = str(conv.get("fecha_limite") or "")[:10]
+    return not f or f >= (hoy or date.today()).isoformat()
 
 
 def cargar_convocatorias() -> list[dict]:
-    """Convocatorias activas Y con visto bueno de la VRI, desde la base de datos; si la
-    base falla, desde el JSON."""
+    """Convocatorias activas, verificadas y vigentes de la base; si falla, las del JSON."""
     try:
         con = db.conectar()
         try:
-            return [c for c in db.listar_convocatorias(con, solo_activas=True) if c.get("verificada")]
+            return [c for c in db.listar_convocatorias(con, solo_activas=True)
+                    if c.get("verificada") and esta_vigente(c)]
         finally:
             con.close()
     except Exception as e:
@@ -232,15 +195,23 @@ def cargar_convocatorias() -> list[dict]:
         return cargar_convocatorias_json()
 
 
-# ---------------------------------------------------------------------------
-# Comparación
-# ---------------------------------------------------------------------------
+_PALABRAS_BECA = re.compile(
+    r"\b(becas?|scholarships?|fellowships?|doctorados?|maestr[ií]as?|posgrados?|pregrados?|pasant[ií]as?|"
+    r"movilidad|intercambios?|estudios en|cursos? de|summer|winter|study visits?|research grants?|"
+    r"pol[ií]ticas? de formaci[oó]n|formaci[oó]n de alto nivel|teaching assistants?|"
+    r"fulbright|chevening|colfuturo|icetex|daad)\b", re.IGNORECASE)
+
+
+def es_beca(conv: dict) -> bool:
+    """Heurística por palabras: ¿es una beca o apoyo para una persona y no para un proyecto?"""
+    texto = f"{conv.get('nombre', '')}. {conv.get('entidad', '')}. {(conv.get('objetivo') or '')[:200]}"
+    return bool(_PALABRAS_BECA.search(texto))
+
+
 def comparar(perfil: dict, conv: dict, hoy: date | None = None, afinidad=None) -> dict:
-    """afinidad: tupla opcional (puntaje 0-1, detalle) ya calculada en lote por
-    rankear(). Si no se pasa, ese campo simplemente se omite."""
+    """Compara perfil y convocatoria; afinidad es (puntaje, detalle) calculado en lote por rankear()."""
     hoy = hoy or date.today()
 
-    # Filtro duro
     motivos = []
     if perfil.get("tipo_beneficiario") and perfil["tipo_beneficiario"] not in conv["tipos_beneficiario"]:
         motivos.append("No está dirigida a tu tipo de beneficiario.")
@@ -249,11 +220,8 @@ def comparar(perfil: dict, conv: dict, hoy: date | None = None, afinidad=None) -
     if motivos:
         return {"elegible": False, "porcentaje": 0, "detalle": {}, "motivos_exclusion": motivos}
 
-    # Puntaje ponderado (los campos que el usuario no ha dado se ignoran)
     puntajes, detalle = {}, {}
 
-    # Un criterio solo puntúa si la convocatoria lo especifica. Si no dice nada (listas completas,
-    # sin montos, "multidisciplinar"), no se premia con 100 %: se muestra como "no especificado".
     from schema import ALCANCES, AREAS, FASES
     NO_ESP = "la convocatoria no lo especifica"
 
@@ -297,9 +265,87 @@ def comparar(perfil: dict, conv: dict, hoy: date | None = None, afinidad=None) -
         puntajes["afinidad_tematica"] = puntaje_af
         detalle["afinidad_tematica"] = detalle_af
 
+    for campo in ("area_conocimiento", "fase_proyecto", "monto_requerido_cop", "alcance"):
+        if not perfil.get(campo):
+            detalle["monto" if campo == "monto_requerido_cop" else campo] = "no lo indicaste: no cuenta en el cálculo"
+
+    from schema import ETIQUETAS
+    nombre_campo = {"area_conocimiento": "área de conocimiento", "fase_proyecto": "fase del proyecto",
+                    "alcance": "alcance del proyecto"}
+    lista_conv = {"area_conocimiento": "areas", "fase_proyecto": "fases", "alcance": "alcances"}
+    def _txt(campo, valores):
+        return ", ".join(dict(ETIQUETAS.get(campo, [])).get(v, v) for v in valores)
+    beca = es_beca(conv)
+    faltantes = []
+    if beca:
+        faltantes.append("Esta es una beca o apoyo para personas, no para un proyecto: revisa en «Requisitos y documentos» el nivel de "
+                         "estudios, el idioma, el promedio y los documentos que pide.")
+    for campo in () if beca else ("area_conocimiento", "fase_proyecto", "alcance"):
+        valores = conv.get(lista_conv[campo]) or []
+        if detalle.get(campo) == "no coincide":
+            actual = _txt(campo, [perfil[campo]])
+            faltantes.append(f"Tu {nombre_campo[campo]} ({actual}) no figura entre las que cubre: {_txt(campo, valores)}.")
+        elif not perfil.get(campo) and detalle.get(campo) != NO_ESP and valores:
+            faltantes.append(f"Indica tu {nombre_campo[campo]} en tu perfil: esta convocatoria cubre {_txt(campo, valores)}.")
+    msg_monto = None if beca else MENSAJES_BRECHA.get(("monto", detalle.get("monto")))
+    if msg_monto:
+        faltantes.append(msg_monto)
+    elif not beca and not perfil.get("monto_requerido_cop") and (conv.get("monto_min") is not None or conv.get("monto_max") is not None):
+        faltantes.append("Indica el monto que necesitas en tu perfil para saber si el monto de la convocatoria te alcanza.")
+    if not perfil.get("descripcion_proyecto"):
+        faltantes.append("Describe tu tema de interés o tu idea en tu perfil para medir qué tanto se parece al objetivo de la convocatoria.")
+
     peso_total = sum(PESOS[k] for k in puntajes)
     pct = round(100 * sum(PESOS[k] * v for k, v in puntajes.items()) / peso_total) if peso_total else 0
-    return {"elegible": True, "porcentaje": pct, "detalle": detalle, "motivos_exclusion": []}
+    def _cop(n):
+        return "$ " + f"{int(n):,}".replace(",", ".") + " COP"
+
+    def _lista(campo, valores):
+        valores = list(valores or [])
+        if len(valores) > 4:
+            return f"{len(valores)} opciones (varias)"
+        return _txt(campo, valores) or "—"
+
+    def _corto(t, n):
+        t = " ".join((t or "").split())
+        return t if len(t) <= n else t[:n].rstrip() + "…"
+
+    lo_m, hi_m = conv.get("monto_min"), conv.get("monto_max")
+    rango = ("No especifica" if lo_m is None and hi_m is None
+             else f"{_cop(lo_m) if lo_m is not None else '…'} a {_cop(hi_m) if hi_m is not None else '…'}")
+    tu = {"afinidad_tematica": _corto(perfil.get("descripcion_proyecto"), 110) or "No escribiste la descripción",
+          "area_conocimiento": _txt("area_conocimiento", [perfil["area_conocimiento"]]) if perfil.get("area_conocimiento") else "No indicado",
+          "fase_proyecto": _txt("fase_proyecto", [perfil["fase_proyecto"]]) if perfil.get("fase_proyecto") else "No indicado",
+          "alcance": _txt("alcance", [perfil["alcance"]]) if perfil.get("alcance") else "No indicado",
+          "monto": _cop(perfil["monto_requerido_cop"]) if perfil.get("monto_requerido_cop") else "No indicado"}
+    ella = {"afinidad_tematica": _corto(conv.get("objetivo") or conv.get("nombre"), 130) or "—",
+            "area_conocimiento": "No especifica" if detalle.get("area_conocimiento") == NO_ESP else _lista("area_conocimiento", conv.get("areas")),
+            "fase_proyecto": "No especifica" if detalle.get("fase_proyecto") == NO_ESP else _lista("fase_proyecto", conv.get("fases")),
+            "alcance": "No especifica" if detalle.get("alcance") == NO_ESP else _lista("alcance", conv.get("alcances")),
+            "monto": rango}
+    nombres = {"afinidad_tematica": "Tema del proyecto", "area_conocimiento": "Área de conocimiento",
+               "fase_proyecto": "Fase del proyecto", "alcance": "Alcance", "monto": "Monto"}
+    desglose = []
+    for k in ("afinidad_tematica", "area_conocimiento", "fase_proyecto", "alcance", "monto"):
+        cuenta = k in puntajes
+        if cuenta:
+            peso_ef = PESOS[k] / peso_total
+            res = (f"{round(100 * puntajes[k])} % de parecido" if k == "afinidad_tematica" else detalle.get(k, ""))
+            aporte = round(100 * peso_ef * puntajes[k], 1)
+        else:
+            peso_ef, aporte = 0, 0
+            if k == "afinidad_tematica":
+                res = "No cuenta: falta la descripción de tu proyecto"
+            elif detalle.get(k) == NO_ESP:
+                res = "No cuenta: la convocatoria no lo especifica"
+            else:
+                res = "No cuenta: no lo indicaste"
+        desglose.append({"clave": k, "criterio": nombres[k], "tu_perfil": tu[k], "convocatoria": ella[k],
+                         "resultado": res, "peso": round(100 * peso_ef), "aporte": aporte, "cuenta": cuenta})
+
+    return {"elegible": True, "porcentaje": pct, "calculable": bool(peso_total), "detalle": detalle,
+            "puntajes": {k: round(100 * v) for k, v in puntajes.items()}, "faltantes": faltantes, "desglose": desglose,
+            "es_beca": beca, "motivos_exclusion": []}
 
 
 MENSAJES_BRECHA = {
@@ -312,8 +358,7 @@ MENSAJES_BRECHA = {
 
 
 def brechas(perfil: dict, conv: dict, hoy: date | None = None) -> list[str]:
-    """Lista, en lenguaje simple, de lo que le falta al perfil para encajar con la
-    convocatoria (versión inicial: compara los campos estructurados)."""
+    """Lista en lenguaje simple lo que le falta al perfil para encajar con la convocatoria."""
     r = comparar(perfil, conv, hoy=hoy)
     if not r["elegible"]:
         return list(r["motivos_exclusion"])
@@ -332,8 +377,6 @@ def rankear(perfil: dict, convocatorias=None):
     afinidades = [None] * len(convocatorias)
     if perfil.get("descripcion_proyecto"):
         objetivos = [f"{c.get('nombre', '')}. {c.get('objetivo', '')}" for c in convocatorias]
-        # Se calculan TODAS las afinidades en una sola pasada: así la normalización
-        # compara las convocatorias entre sí, no una por una contra un umbral fijo.
         afinidades = afinidades_tematicas(perfil["descripcion_proyecto"], objetivos)
 
     resultados = []
@@ -343,6 +386,16 @@ def rankear(perfil: dict, convocatorias=None):
                            "fecha_limite": c.get("fecha_limite"), "requisitos": c.get("requisitos", ""),
                            "beneficios": c.get("beneficios", ""), "objetivo": c.get("objetivo", ""),
                            "url": c.get("url", ""), "fuente": c.get("fuente", "manual"),
-                           "verificada": c.get("verificada", True), **r})
-    resultados.sort(key=lambda x: (x["elegible"], x["porcentaje"]), reverse=True)
+                           "verificada": c.get("verificada", True),
+                           "recursos_totales": c.get("recursos_totales"), "monto_min": c.get("monto_min"),
+                           "monto_max": c.get("monto_max"), "estado_fuente": c.get("estado_fuente", ""),
+                           "fecha_apertura": c.get("fecha_apertura"), "cronograma": c.get("cronograma", []),
+                           "documentos": c.get("documentos", []), "requisitos_lista": c.get("requisitos_lista", []),
+                           "dirigida_a": c.get("dirigida_a", ""), "ejes_tematicos": c.get("ejes_tematicos", []),
+                           "criterios_evaluacion": c.get("criterios_evaluacion", []),
+                           "duracion_meses": c.get("duracion_meses"), "contrapartida": c.get("contrapartida", ""),
+                           "leido_tdr": c.get("leido_tdr", False), "tdr_url": c.get("tdr_url", ""),
+                           **r})
+    resultados.sort(key=lambda x: (x.get("fecha_limite") is None, x.get("fecha_limite") or ""))
+    resultados.sort(key=lambda x: (x["elegible"], x.get("calculable", False), x["porcentaje"]), reverse=True)
     return resultados

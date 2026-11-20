@@ -1,44 +1,38 @@
-"""Capa de IA basada en Groq (API compatible con OpenAI, con capa gratuita).
-- generar_texto(): una respuesta simple (usada para las recomendaciones).
-- generar_json(): respuesta en JSON (usada por el recolector de convocatorias).
-- ChatAgente: conversación con herramientas (function calling): send_message(texto).text
-
-Si el modelo principal está saturado o sin cuota, reintenta y luego pasa
-automáticamente al modelo de respaldo."""
+"""Capa de IA con Groq: texto, JSON y chat con herramientas, con reintentos y modelos de respaldo."""
 import json
 import os
 import re
 import time
 
-# Principal: más inteligente. Respaldo: más rápido y con mucha más cuota diaria.
-MODELO_PRINCIPAL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
-MODELO_RESPALDO = os.environ.get("GROQ_MODEL_RESPALDO", "llama-3.1-8b-instant")
-MODELOS = list(dict.fromkeys([MODELO_PRINCIPAL, MODELO_RESPALDO]))
-# Para extraer datos de páginas se usa primero el modelo rápido: gasta mucha menos cuota.
-MODELOS_EXTRACCION = list(dict.fromkeys([MODELO_RESPALDO, MODELO_PRINCIPAL]))
+MODELO_PRINCIPAL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
+MODELO_RESPALDO = os.environ.get("GROQ_MODEL_RESPALDO", "openai/gpt-oss-20b")
+MODELO_EXTRA_CHAT = os.environ.get("GROQ_MODEL_EXTRA_CHAT", "llama-3.3-70b-versatile")
+MODELO_EXTRA_LECTURA = os.environ.get("GROQ_MODEL_EXTRA_LECTURA", "llama-3.1-8b-instant")
+MODELOS = list(dict.fromkeys([MODELO_PRINCIPAL, MODELO_RESPALDO, MODELO_EXTRA_CHAT]))
+MODELOS_EXTRACCION = list(dict.fromkeys([MODELO_RESPALDO, MODELO_PRINCIPAL, MODELO_EXTRA_LECTURA]))
 
 _client = None
 
 
 def obtener_cliente():
-    """Un solo cliente compartido, creado la primera vez que se necesita."""
+    """Cliente compartido, creado la primera vez que se usa."""
     global _client
     if _client is None:
-        from openai import OpenAI  # se importa aquí para que el resto funcione sin la librería
+        from openai import OpenAI
         _client = OpenAI(api_key=os.environ["GROQ_API_KEY"],
                          base_url="https://api.groq.com/openai/v1")
     return _client
 
 
 def es_error_temporal(e: Exception) -> bool:
-    """True si el error es de saturación o límite de uso (vale la pena reintentar)."""
+    """True si el error es de saturación o de límite de uso."""
     t = str(e).lower()
     return any(c in t for c in ("503", "429", "unavailable", "rate limit", "rate_limit",
                                 "overloaded", "capacity"))
 
 
 def _llamar(modelos=None, **kwargs):
-    """Llama al modelo con 2 intentos por modelo y cambia al siguiente si falla."""
+    """Llama al modelo con 2 intentos y pasa al siguiente modelo si falla."""
     ultimo_error = None
     for modelo in (modelos or MODELOS):
         for i in range(2):
@@ -49,7 +43,7 @@ def _llamar(modelos=None, **kwargs):
                 if es_error_temporal(e):
                     time.sleep(2 ** i)
                     continue
-                break  # error no temporal: prueba el siguiente modelo
+                break
     raise ultimo_error
 
 
@@ -59,7 +53,7 @@ def generar_texto(prompt: str) -> str:
 
 
 def generar_json(prompt: str) -> dict:
-    """Pide una respuesta en JSON y la convierte en dict. Lanza ValueError si no es JSON válido."""
+    """Pide una respuesta JSON y la devuelve como dict. ValueError si no es válida."""
     r = _llamar(modelos=MODELOS_EXTRACCION, messages=[{"role": "user", "content": prompt}],
                 temperature=0, response_format={"type": "json_object"})
     texto = (r.choices[0].message.content or "").strip()
@@ -79,10 +73,9 @@ class RespuestaChat:
 
 
 class ChatAgente:
-    """Chat con herramientas. `funciones` es {nombre: callable}; `esquemas` es la
-    lista de herramientas en formato OpenAI (nombre, descripción y parámetros)."""
+    """Chat con herramientas: funciones es {nombre: callable} y esquemas están en formato OpenAI."""
 
-    MAX_VUELTAS = 6  # tope de ciclos modelo -> herramienta -> modelo
+    MAX_VUELTAS = 6
 
     def __init__(self, sistema: str, funciones: dict, esquemas: list):
         self.funciones = funciones
@@ -129,6 +122,5 @@ class ChatAgente:
                     })
             return RespuestaChat("No logré completar la consulta. ¿Puedes reformular tu pregunta?")
         except Exception:
-            # Si algo falla, se descarta este turno para no dejar el historial roto.
             del self.mensajes[inicio:]
             raise

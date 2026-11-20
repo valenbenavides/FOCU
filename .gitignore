@@ -4,9 +4,17 @@ venv/
 .venv/
 __pycache__/
 *.pyc
-datos/*.db
-datos/convocatorias.json
 .DS_Store
+.vscode/
+
+datos/*.db
+datos/*.db-journal
+datos/convocatorias.json
 
 *.xlsx
-!plantilla_semilleros.xlsx
+!plantilla_personas.xlsx
+
+limpiar_pruebas.py
+reiniciar_consentimientos.py
+quitar_ejemplos.py
+preparar_prueba.py

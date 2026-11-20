@@ -1,4 +1,4 @@
-"""Lógica del ingreso por correo + código temporal (sin FastAPI, para poder probarla)."""
+"""Ingreso por correo y código temporal, y verificación de solicitudes de registro."""
 import hmac
 import time
 
@@ -8,11 +8,10 @@ import seguridad
 
 
 def emitir_codigo(con, correo: str) -> tuple[dict, str] | None:
-    """Si el correo pertenece a un director o a un integrante de un grupo, crea un código
-    temporal y devuelve (usuario, código en claro) para enviarlo por correo. Si no, None."""
+    """Crea un código temporal para un correo que puede ingresar; devuelve (usuario, código) o None."""
     mail = seguridad.normalizar_correo(correo)
     u = db.usuario_por_correo(con, mail)
-    if not u or not u["activo"] or not (u["rol"] == "admin" or u.get("semillero_id")):
+    if not db.puede_ingresar(u):
         return None
     codigo = seguridad.generar_codigo_temporal()
     db.guardar_codigo_temporal(con, u["id"], seguridad.hash_codigo(codigo, mail),
@@ -20,9 +19,23 @@ def emitir_codigo(con, correo: str) -> tuple[dict, str] | None:
     return u, codigo
 
 
+def estado_de_correo(con, correo: str) -> str:
+    """Estado de un correo: ok, desactivado, sin_grupo, pendiente, rechazada o no_registrado."""
+    mail = seguridad.normalizar_correo(correo)
+    u = db.usuario_por_correo(con, mail)
+    if u:
+        if db.puede_ingresar(u):
+            return "ok"
+        return "desactivado" if not u["activo"] else "sin_grupo"
+    if db.solicitud_en_estado(con, mail, "pendiente"):
+        return "pendiente"
+    if db.solicitud_en_estado(con, mail, "rechazada"):
+        return "rechazada"
+    return "no_registrado"
+
+
 def verificar_codigo(con, correo: str, codigo: str) -> tuple[dict | None, bool]:
-    """Devuelve (usuario si el código es correcto, hubo_intento_contra_usuario_real).
-    El código es de un solo uso: al aceptarlo se invalida."""
+    """Devuelve (usuario si el código es correcto, si hubo intento contra un usuario real). Un solo uso."""
     mail = seguridad.normalizar_correo(correo)
     u = db.usuario_por_correo(con, mail)
     info = db.datos_codigo(con, u["id"]) if u else None
@@ -36,3 +49,30 @@ def verificar_codigo(con, correo: str, codigo: str) -> tuple[dict | None, bool]:
     if vigente:
         db.sumar_intento_codigo(con, u["id"])
     return None, vigente
+
+
+def emitir_codigo_registro(con, nombre: str, correo: str, grupo_id: int, semillero: str) -> str:
+    """Guarda una solicitud sin verificar y devuelve el código para enviarlo al correo."""
+    mail = seguridad.normalizar_correo(correo)
+    codigo = seguridad.generar_codigo_temporal()
+    db.crear_solicitud_sin_verificar(
+        con, nombre.strip(), mail, grupo_id, (semillero or "").strip(),
+        seguridad.hash_codigo(codigo, mail), int(time.time()) + seguridad.MINUTOS_CODIGO * 60)
+    return codigo
+
+
+def verificar_codigo_registro(con, correo: str, codigo: str) -> dict | None:
+    """Si el código es correcto, la solicitud pasa a pendiente y se devuelve. Un solo uso."""
+    mail = seguridad.normalizar_correo(correo)
+    sol = db.solicitud_en_estado(con, mail, "sin_verificar")
+    info = db.datos_codigo_solicitud(con, sol["id"]) if sol else None
+    vigente = bool(info and info["codigo_hash"] and info["codigo_expira"] and info["codigo_expira"] >= time.time()
+                   and info["codigo_intentos"] < seguridad.MAX_INTENTOS_CODIGO)
+    if vigente and hmac.compare_digest(info["codigo_hash"], seguridad.hash_codigo(codigo, mail)):
+        db.marcar_solicitud(con, sol["id"], "pendiente")
+        con.commit()
+        sol["estado"] = "pendiente"
+        return sol
+    if vigente:
+        db.sumar_intento_solicitud(con, sol["id"])
+    return None

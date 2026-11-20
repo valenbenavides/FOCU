@@ -1,15 +1,51 @@
-AVISO DE TRATAMIENTO DE DATOS PERSONALES (BORRADOR — debe ser revisado y aprobado por la Universidad del Cauca antes de usarse en producción)
+AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES – FOCU
+(Financiación de Oportunidades y Capacidades Universitarias)
 
-Responsable del tratamiento: Universidad del Cauca, Vicerrectoría de Investigaciones (VRI). Contacto: [correo y dirección por definir].
+En cumplimiento de la Ley Estatutaria 1581 de 2012, el Decreto 1074 de 2015 (que compila el Decreto 1377 de 2013) y demás normas que regulan la protección de datos personales en Colombia, te informamos cómo se tratarán tus datos en FOCU y te pedimos tu autorización previa, expresa e informada.
 
-Qué datos recogemos: tu nombre, tu correo institucional (si lo registraste), el semillero y el grupo de investigación al que perteneces, la información de perfil que escribas en la plataforma (área, fase y alcance de tu proyecto, monto requerido y una descripción breve) y las convocatorias a las que solicites postularte.
+1. RESPONSABLE DEL TRATAMIENTO
+Universidad del Cauca, [NIT y dirección: completar por la Universidad]. La plataforma es administrada por la Vicerrectoría de Investigaciones (VRI) y operada técnicamente con el apoyo de la División de las TIC.
+Contacto para consultas y reclamos: focu.unicauca@gmail.com
+Política de tratamiento de datos personales de la Universidad del Cauca: [enlace: completar por la Universidad].
 
-Para qué los usamos: para mostrarte las convocatorias de financiación que mejor se ajustan a tu proyecto, y para que la VRI revise y apruebe las solicitudes de postulación de los semilleros. No usamos tus datos para publicidad ni los vendemos.
+2. QUÉ DATOS TRATAMOS
+- Datos de identificación y contacto: nombre y correo electrónico.
+- Datos académicos e institucionales: facultad, grupo de investigación, semillero y cargo (integrante o director/a de grupo).
+- Información de tu perfil que tú escribas: área de conocimiento, fase y alcance de tu proyecto o interés, monto requerido y una descripción breve.
+- Datos de tus postulaciones: convocatoria, notas, observaciones, estado y la lista de requisitos que marques.
+- Mensajes que escribas al asistente de inteligencia artificial.
+FOCU no solicita datos sensibles (salud, origen étnico, orientación política o religiosa, datos biométricos, entre otros). Si no es indispensable, no los escribas en ningún campo ni en el asistente. Responder información adicional a la estrictamente necesaria es voluntario.
 
-Quién los ve: tú y el personal autorizado de la VRI. Tu código de acceso se guarda cifrado y no puede ser consultado.
+3. PARA QUÉ USAMOS TUS DATOS (FINALIDADES)
+a) Crear y administrar tu cuenta y tu perfil en FOCU.
+b) Mostrarte convocatorias y oportunidades de financiación que se ajusten a tu perfil, y calcular una compatibilidad orientativa.
+c) Gestionar las postulaciones de tu grupo: tu director/a de grupo y la VRI revisan, aprueban, devuelven o rechazan las solicitudes y el estado de sus requisitos.
+d) Permitir que el director o la directora de tu grupo administre a sus integrantes.
+e) Enviarte correos relacionados con la plataforma: códigos de ingreso, avisos de postulaciones y respuestas.
+f) Responder consultas y reclamos, y mejorar el funcionamiento y la seguridad de la plataforma.
+Tus datos no se usan con fines publicitarios ni se comercializan.
 
-Asistente de IA: los mensajes que escribas en el asistente se envían a un proveedor externo de modelos de lenguaje para generar la respuesta. No escribas datos sensibles (salud, documentos de identidad, contraseñas).
+4. QUIÉN PUEDE VER TUS DATOS
+- Tú, en tu cuenta.
+- El director o la directora de tu grupo de investigación (tu información de integrante y las postulaciones del grupo).
+- El personal autorizado de la VRI y de la administración técnica de FOCU, para gestionar la plataforma.
+No entregamos tus datos a otras personas o entidades, salvo mandato legal o tu autorización.
 
-Tus derechos (Ley 1581 de 2012): conocer, actualizar y rectificar tus datos, solicitar que se supriman, revocar esta autorización y ser informado sobre el uso que se les da. Para ejercerlos escribe al contacto indicado arriba.
+5. PROVEEDORES TECNOLÓGICOS
+Para funcionar, FOCU utiliza servicios de terceros bajo la figura de encargados del tratamiento: alojamiento y base de datos, envío de correos y un proveedor de modelos de lenguaje (inteligencia artificial). Algunos de estos servicios pueden operar en servidores fuera de Colombia. Al aceptar, autorizas esa transmisión de datos para las finalidades descritas. Los mensajes que escribes al asistente se envían a ese proveedor para generar la respuesta.
 
-Al pulsar "Acepto" autorizas el tratamiento de tus datos en los términos descritos.
+6. CUÁNTO TIEMPO CONSERVAMOS TUS DATOS
+- Los datos de tu cuenta y perfil, mientras tengas acceso a FOCU y lo requiera la gestión de la plataforma.
+- Las conversaciones con el asistente se borran automáticamente a los 4 días sin uso.
+- Las postulaciones se conservan como soporte del trámite, salvo que se eliminen conforme a lo previsto en la plataforma o se ordene su supresión.
+Cuando los datos dejen de ser necesarios, se suprimirán, salvo que una norma exija conservarlos.
+
+7. TUS DERECHOS COMO TITULAR
+Puedes conocer, actualizar y rectificar tus datos; solicitar prueba de esta autorización; ser informado/a del uso que se ha dado a tus datos; presentar consultas y reclamos; revocar la autorización o solicitar la supresión de tus datos cuando proceda; y acceder gratuitamente a ellos.
+Para ejercerlos escribe a focu.unicauca@gmail.com indicando tu nombre y correo de registro. Las consultas se responden en máximo 10 días hábiles y los reclamos en máximo 15 días hábiles, prorrogables según la ley. Si no recibes respuesta o no estás conforme, puedes acudir a la Superintendencia de Industria y Comercio.
+Puedes editar tus datos de perfil en "Mi información". La revocatoria de la autorización puede impedirte seguir usando FOCU.
+
+8. ALCANCE DE LA INFORMACIÓN QUE MUESTRA FOCU
+Los porcentajes de compatibilidad y las respuestas del asistente son orientativos: no certifican el cumplimiento de requisitos ni garantizan financiación. La aprobación de una postulación en FOCU es un trámite interno de revisión y no reemplaza la postulación oficial ante la entidad que abre la convocatoria, salvo que la convocatoria indique lo contrario. Verifica siempre los términos de referencia en la fuente oficial.
+
+Al pulsar "Acepto" declaro que he leído y comprendido esta autorización y otorgo mi consentimiento libre, previo, expreso e informado para el tratamiento de mis datos personales en los términos descritos.

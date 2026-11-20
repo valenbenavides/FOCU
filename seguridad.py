@@ -1,20 +1,12 @@
-"""Códigos de acceso temporales, tokens y límites de intentos.
-
-- Para ingresar, la persona escribe su correo (debe estar cargado en la base, dentro de un
-  grupo de investigación) y recibe por correo un código de 6 dígitos que dura 15 minutos y
-  sirve una sola vez. En la base solo se guarda su HMAC-SHA256 (con SECRET_KEY y el correo
-  como sal): si alguien roba la base, no ve ningún código.
-- Al ingresar, el backend entrega un token JWT que el frontend manda en cada petición.
-- IMPORTANTE: si cambias SECRET_KEY, los tokens y códigos pendientes dejan de servir."""
+"""Códigos de acceso temporales, tokens de sesión y límites de intentos."""
 import hashlib
 import hmac
 import os
 import secrets
 import time
 
-import jwt  # pip install pyjwt
+import jwt
 
-# Sin 0/O, 1/I/L para evitar confusiones al dictar o copiar un código.
 ALFABETO = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HORAS_TOKEN = 8
 MINUTOS_CODIGO = 15
@@ -50,8 +42,7 @@ def normalizar_codigo(codigo: str) -> str:
 
 
 def hash_codigo(codigo: str, sal: str = "") -> str:
-    """`sal` = correo de la persona: así dos personas con el mismo código de 6 dígitos
-    no producen el mismo hash."""
+    """HMAC-SHA256 del código con SECRET_KEY y el correo como sal; en la base solo se guarda este hash."""
     msg = (normalizar_correo(sal) + "|" + normalizar_codigo(codigo)).encode()
     return hmac.new(_secreto(), msg, hashlib.sha256).hexdigest()
 
@@ -69,7 +60,6 @@ def leer_token(token: str) -> int | None:
         return None
 
 
-# --- Límite de solicitudes de código (en memoria; por correo y por IP) -----
 _solicitudes: dict[str, list[float]] = {}
 
 
@@ -84,7 +74,6 @@ def limite_excedido(clave: str, maximo: int, ventana_s: int) -> bool:
     return excedido
 
 
-# --- Límite de intentos fallidos de login (en memoria, por IP) --------------
 VENTANA_S, MAX_FALLOS = 300, 10
 _fallos: dict[str, list[float]] = {}
 

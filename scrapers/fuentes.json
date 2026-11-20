@@ -7,10 +7,95 @@
     "patron_enlaces": "/node/\\d+",
     "max_enlaces": 12,
     "activa": true,
-    "nota": "Única fuente por ahora (decisión del equipo). Lee las filas de la tabla (enlaces /node/N) de las 2 primeras páginas, salta lo ya revisado y lo que abrió hace más de 400 días. Quedan sin verificar hasta que la VRI les dé el visto bueno.",
+    "nota": "Tabla de las 2 primeras páginas; omite lo ya revisado y lo de más de 400 días.",
     "patron_solo_en_enlace": true,
     "solo_filas_de_tabla": true,
     "paginas": 2,
     "max_antiguedad_dias": 400
+  },
+  {
+    "id": "erasmus",
+    "nombre": "Erasmus+ (Unión Europea)",
+    "entidad": "Comisión Europea - Erasmus+ (punto focal en Colombia: ICETEX)",
+    "urls_directas": [
+      "https://erasmus-plus.ec.europa.eu/node/509",
+      "https://erasmus-plus.ec.europa.eu/node/515",
+      "https://web.icetex.gov.co/becas/becas-para-estudios-en-el-exterior/programas-especiales/erasmus"
+    ],
+    "leer_tdr": false,
+    "activa": false,
+    "nota": "Desactivada: las convocatorias 2026 cerraron. Agregar las direcciones de las nuevas en urls_directas."
+  },
+  {
+    "id": "icetex_becas",
+    "nombre": "ICETEX: becas vigentes en el exterior",
+    "entidad": "ICETEX",
+    "url_listado": "https://web.icetex.gov.co/becas/becas-para-estudios-en-el-exterior/becas-vigentes",
+    "patron_enlaces": "/es/-/|/otras-becas/",
+    "patron_solo_en_enlace": true,
+    "max_enlaces": 12,
+    "leer_tdr": true,
+    "activa": true,
+    "nota": "El listado no trae fechas de cierre: se leen en cada página."
+  },
+  {
+    "id": "daad",
+    "nombre": "DAAD Colombia: becas de investigación y estudio en Alemania",
+    "entidad": "DAAD (Servicio Alemán de Intercambio Académico)",
+    "url_listado": "https://www.daad.co/es/becas/buscador-de-becas/?type=a&origin=54&target=54&q=&status=0&intention=0&subject=0",
+    "patron_enlaces": "detail_to_show=\\d{5,}",
+    "patron_solo_en_enlace": true,
+    "parametro_pagina": "pg",
+    "paginas": 3,
+    "max_enlaces": 10,
+    "leer_tdr": true,
+    "activa": true,
+    "nota": "El listado trae los plazos. Se leen las primeras páginas."
+  },
+  {
+    "id": "vri_unicauca",
+    "nombre": "VRI Unicauca: convocatorias internas",
+    "entidad": "Vicerrectoría de Investigaciones, Universidad del Cauca",
+    "url_listado": "https://www.unicauca.edu.co/vicerrectoria-de-investigaciones/vri-convo/",
+    "patron_enlaces": "/vri-convo/[a-z0-9-]+/?$",
+    "patron_solo_en_enlace": true,
+    "max_enlaces": 12,
+    "leer_tdr": true,
+    "activa": true,
+    "nota": "El listado solo trae la fecha de publicación: el cierre se lee en cada página."
+  },
+  {
+    "id": "fulbright",
+    "nombre": "Fulbright Colombia: programas abiertos",
+    "entidad": "Comisión Fulbright Colombia",
+    "urls_directas": [
+      "https://fulbright.edu.co/portfolio-academico/english-teaching-assistant-para-instituciones-de-educacion-superior/",
+      "https://fulbright.edu.co/portfolio-academico/fulbright-u-s-specialist-program/"
+    ],
+    "leer_tdr": false,
+    "activa": true,
+    "nota": "Páginas fijas de los programas abiertos. Agregar los de investigadores cuando reabran."
+  },
+  {
+    "id": "colfuturo",
+    "nombre": "COLFUTURO: Crédito Beca para posgrados en el exterior",
+    "entidad": "COLFUTURO",
+    "urls_directas": [
+      "https://www.colfuturo.org/programas/credito-beca/convocatoria"
+    ],
+    "leer_tdr": false,
+    "activa": true,
+    "nota": "Convocatoria anual; se relee en cada actualización."
+  },
+  {
+    "id": "chevening",
+    "nombre": "Chevening Colombia: becas de maestría en el Reino Unido",
+    "entidad": "Chevening (Gobierno del Reino Unido)",
+    "urls_directas": [
+      "https://www.chevening.org/scholarship/colombia/"
+    ],
+    "leer_tdr": false,
+    "activa": true,
+    "nota": "Convocatoria anual; se descarta sola mientras esté cerrada."
   }
 ]

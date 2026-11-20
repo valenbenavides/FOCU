@@ -1,5 +1,4 @@
-"""Esquema de datos: categorías cerradas válidas para perfil y convocatoria,
-y sus etiquetas legibles para mostrar en la interfaz."""
+"""Categorías válidas para perfiles y convocatorias, con sus etiquetas para la interfaz."""
 
 TIPOS_BENEFICIARIO = ["grupo_semillero", "grupo_investigacion", "estudiante_pregrado",
                       "estudiante_posgrado", "docente", "investigador", "emprendedor"]
@@ -8,6 +7,17 @@ AREAS = ["ciencias_naturales", "ingenieria_tecnologia", "salud", "agro",
 ALCANCES = ["regional", "nacional", "internacional"]
 FASES = ["idea", "prototipo", "ejecucion", "consolidacion"]
 
+TIPOS_PERFIL = ["grupo_investigacion", "investigador", "docente",
+                "estudiante_posgrado", "estudiante_pregrado"]
+
+TIPO_FIJO = None
+
+
+def con_tipo_fijo(perfil: dict) -> dict:
+    """Copia del perfil con el tipo de beneficiario fijo, si hay uno."""
+    return {**perfil, "tipo_beneficiario": TIPO_FIJO} if TIPO_FIJO else dict(perfil)
+
+
 CATEGORIAS = {
     "tipo_beneficiario": TIPOS_BENEFICIARIO,
     "area_conocimiento": AREAS,
@@ -15,8 +25,6 @@ CATEGORIAS = {
     "fase_proyecto": FASES,
 }
 
-# Etiquetas legibles para selectboxes y tarjetas (la interfaz muestra estas,
-# el código interno sigue usando las claves cortas de arriba).
 ETIQUETAS_TIPO_BENEFICIARIO = {
     "grupo_semillero": "Grupo de semillero de investigación",
     "grupo_investigacion": "Grupo de investigación",
@@ -39,10 +47,21 @@ ETIQUETAS_ALCANCE = {"regional": "Regional", "nacional": "Nacional", "internacio
 ETIQUETAS_FASE = {"idea": "Idea", "prototipo": "Prototipo", "ejecucion": "Ejecución",
                   "consolidacion": "Consolidación"}
 
-# Todas las etiquetas juntas, por campo (la API las entrega al frontend).
 ETIQUETAS = {
     "tipo_beneficiario": ETIQUETAS_TIPO_BENEFICIARIO,
     "area_conocimiento": ETIQUETAS_AREA,
     "alcance": ETIQUETAS_ALCANCE,
     "fase_proyecto": ETIQUETAS_FASE,
 }
+
+FACULTADES = [
+    "Facultad de Artes",
+    "Facultad de Ciencias Agrarias",
+    "Facultad de Ciencias Contables, Económicas y Administrativas",
+    "Facultad de Ciencias de la Salud",
+    "Facultad de Ciencias Humanas y Sociales",
+    "Facultad de Ciencias Naturales, Exactas y de la Educación",
+    "Facultad de Derecho, Ciencias Políticas y Sociales",
+    "Facultad de Ingeniería Civil",
+    "Facultad de Ingeniería Electrónica y Telecomunicaciones",
+]
